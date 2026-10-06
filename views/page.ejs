@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hiking with Confidence</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="<%= page %>">
+    <header class="topbar">
+      <h1>Hiking with Confidence</h1>
+      <% if (user) { %>
+      <div class="topbar-right">
+        <span><%= user.displayName %> · <%= user.role %></span>
+        <button id="logoutBtn" class="ghost">Logout</button>
+      </div>
+      <% } %>
+    </header>
+
+    <% if (page !== 'login') { %>
+    <nav class="nav">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/alerts">Alerts</a>
+      <a href="/geolock">Geolock</a>
+      <a href="/meshes">Meshes</a>
+      <a href="/users">Users</a>
+      <a href="/settings">Settings</a>
+    </nav>
+    <% } %>
+
+    <main class="container">
+      <% if (page === 'login') { %>
+      <section class="card">
+        <h2>Sign in</h2>
+        <p class="hint">Use demo account: admin@hikingwithconfidence.local / ChangeMe123!</p>
+        <form id="loginForm" class="stack">
+          <input name="email" type="email" placeholder="Email" required />
+          <input name="password" type="password" placeholder="Password" required />
+          <button type="submit">Login</button>
+        </form>
+      </section>
+      <% } else { %>
+      <section class="card" id="pageContent"></section>
+      <% } %>
+      <section id="toast"></section>
+    </main>
+
+    <script>window.__PAGE__ = "<%= page %>";</script>
+    <% if (user) { %>
+    <script>window.__USER__ = <%- JSON.stringify(user) %>;</script>
+    <% } %>
+    <script src="/app.js"></script>
+  </body>
+</html>
