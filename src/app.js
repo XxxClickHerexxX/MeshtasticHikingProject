@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const bcrypt = require('bcryptjs');
+const csrf = require('csurf');
 
 const { createStore } = require('./services/store');
 const { attachUser, requireAuth, requireRole } = require('./middleware/auth');
@@ -51,7 +52,14 @@ async function buildApp() {
 
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+        },
+      },
     })
   );
   app.use(morgan('dev'));
@@ -89,6 +97,7 @@ async function buildApp() {
 
   app.use(session(sessionConfig));
   app.use(attachUser(store));
+  app.use(csrf());
   app.use(express.static(path.resolve(process.cwd(), 'public')));
 
   app.get('/', (req, res) => {
@@ -169,6 +178,10 @@ async function buildApp() {
   app.get('/api/auth/me', (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Authentication required' });
     return res.json({ user: req.user });
+  });
+
+  app.get('/api/auth/csrf-token', (_req, res) => {
+    return res.json({ csrfToken: _req.csrfToken() });
   });
 
   app.get('/api/dashboard', requireAuth, async (req, res, next) => {
@@ -576,6 +589,9 @@ async function buildApp() {
 
   app.use((err, _req, res, _next) => {
     // Avoid leaking internals
+    if (err.code === 'EBADCSRFTOKEN') {
+      return res.status(403).json({ error: 'Invalid CSRF token' });
+    }
     res.status(500).json({ error: 'Unexpected server error' });
   });
 

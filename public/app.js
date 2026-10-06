@@ -1,6 +1,19 @@
+let csrfToken = null;
+
+async function ensureCsrfToken() {
+  if (csrfToken) return csrfToken;
+  const response = await fetch('/api/auth/csrf-token');
+  if (!response.ok) throw new Error('Failed to initialize session security token');
+  const data = await response.json();
+  csrfToken = data.csrfToken;
+  return csrfToken;
+}
+
 async function api(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const token = method === 'GET' ? null : await ensureCsrfToken();
   const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: { 'Content-Type': 'application/json', ...(token ? { 'csrf-token': token } : {}), ...(options.headers || {}) },
     ...options,
   });
   const data = await response.json().catch(() => ({}));

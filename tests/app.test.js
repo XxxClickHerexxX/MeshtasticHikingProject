@@ -15,7 +15,13 @@ async function createAgent() {
 }
 
 async function login(agent, email, password = 'ChangeMe123!') {
-  await agent.post('/api/auth/login').send({ email, password }).expect(200);
+  const csrfToken = await getCsrfToken(agent);
+  await agent.post('/api/auth/login').set('csrf-token', csrfToken).send({ email, password }).expect(200);
+}
+
+async function getCsrfToken(agent) {
+  const response = await agent.get('/api/auth/csrf-token').expect(200);
+  return response.body.csrfToken;
 }
 
 describe('Hiking with Confidence API', () => {
@@ -31,9 +37,11 @@ describe('Hiking with Confidence API', () => {
   test('viewer is blocked from route management by server-side RBAC', async () => {
     const agent = await createAgent();
     await login(agent, 'viewer@hikingwithconfidence.local');
+    const csrfToken = await getCsrfToken(agent);
 
     await agent
       .post('/api/routes')
+      .set('csrf-token', csrfToken)
       .send({
         name: 'Forbidden',
         routeId: 'FORB-1',
@@ -99,9 +107,11 @@ describe('Hiking with Confidence API', () => {
     const app = await buildApp();
     const hiker = request.agent(app);
     await login(hiker, 'hiker@hikingwithconfidence.local');
+    const hikerCsrfToken = await getCsrfToken(hiker);
 
     await hiker
       .post('/api/alerts')
+      .set('csrf-token', hikerCsrfToken)
       .send({
         type: 'Emergency',
         priority: 'Critical',
@@ -112,6 +122,7 @@ describe('Hiking with Confidence API', () => {
 
     const created = await hiker
       .post('/api/alerts')
+      .set('csrf-token', hikerCsrfToken)
       .send({
         type: 'Emergency',
         priority: 'Critical',
@@ -125,10 +136,21 @@ describe('Hiking with Confidence API', () => {
 
     const coordinator = request.agent(app);
     await login(coordinator, 'coordinator@hikingwithconfidence.local');
+    const coordinatorCsrfToken = await getCsrfToken(coordinator);
 
-    await coordinator.patch(`/api/alerts/${alertId}/acknowledge`).expect(200);
-    await coordinator.post(`/api/alerts/${alertId}/actions`).send({ actionType: 'dispatch', notes: 'Sent support team' }).expect(201);
-    const resolved = await coordinator.patch(`/api/alerts/${alertId}/resolve`).expect(200);
+    await coordinator
+      .patch(`/api/alerts/${alertId}/acknowledge`)
+      .set('csrf-token', coordinatorCsrfToken)
+      .expect(200);
+    await coordinator
+      .post(`/api/alerts/${alertId}/actions`)
+      .set('csrf-token', coordinatorCsrfToken)
+      .send({ actionType: 'dispatch', notes: 'Sent support team' })
+      .expect(201);
+    const resolved = await coordinator
+      .patch(`/api/alerts/${alertId}/resolve`)
+      .set('csrf-token', coordinatorCsrfToken)
+      .expect(200);
     expect(resolved.body.alert.status).toBe('Resolved');
 
     const alerts = await coordinator.get('/api/alerts').expect(200);
